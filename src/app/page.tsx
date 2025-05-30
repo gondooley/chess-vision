@@ -21,12 +21,11 @@ export default function Home() {
     let currentColors = new BoardWeights();
 
     if (attackingControlIsOn || defendingControlIsOn || centralImportanceIsOn) {
-      if (!removeShading) {
-        for (let rank = 0; rank < 8; rank++) {
-          for (let file = 0; file < 8; file++) {
-            const isDark = (rank + file) % 2 === 1;
-            currentColors.weights[rank][file] = isDark ? "rgb(21, 21, 21)" : "rgb(31, 31, 31)";
-          }
+
+      for (let rank = 0; rank < 8; rank++) {
+        for (let file = 0; file < 8; file++) {
+          const isDark = (rank + file) % 2 === 1;
+          currentColors.weights[rank][file] = (removeShading || isDark) ? "rgb(21, 21, 21)" : "rgb(31, 31, 31)";
         }
       }
 

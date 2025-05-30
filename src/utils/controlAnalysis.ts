@@ -130,9 +130,20 @@ export function addAttackingControlColours(currentColors: BoardWeights, game: Ch
                 }
               }
             } else {
-              // For other pieces, check legal moves
+              // For other pieces, check if they can attack, including protecting own pieces
+              let canAttack = false;
+              const pieceAtTarget = game.get(targetSquare);
+              let removed = false;
+              if (pieceAtTarget && pieceAtTarget.color === piece.color) {
+                game.remove(targetSquare);
+                removed = true;
+              }
               const moves = game.moves({ square: fromSquare, verbose: true });
-              if (moves.some(move => move.to === targetSquare)) {
+              canAttack = moves.some(move => move.to === targetSquare);
+              if (removed && pieceAtTarget) {
+                game.put(pieceAtTarget, targetSquare);
+              }
+              if (canAttack) {
                 if (piece.type === 'k') {
                   attackWeights[rank][file] += 1; // Kings always count as 1
                 } else {
@@ -220,12 +231,23 @@ export function addDefendingControlColours(currentColors: BoardWeights, game: Ch
                 }
               }
             } else {
-              // For other pieces, create a new game with opponent's turn
+              // For other pieces, check if they can attack, including protecting own pieces
               const fenParts = game.fen().split(' ');
               fenParts[1] = opponentColor; // Set the turn to opponent's color
               const gameCopy = new Chess(fenParts.join(' '));
+              let canAttack = false;
+              const pieceAtTarget = gameCopy.get(targetSquare);
+              let removed = false;
+              if (pieceAtTarget && pieceAtTarget.color === piece.color) {
+                gameCopy.remove(targetSquare);
+                removed = true;
+              }
               const moves = gameCopy.moves({ square: fromSquare, verbose: true });
-              if (moves.some(move => move.to === targetSquare)) {
+              canAttack = moves.some(move => move.to === targetSquare);
+              if (removed && pieceAtTarget) {
+                gameCopy.put(pieceAtTarget, targetSquare);
+              }
+              if (canAttack) {
                 if (piece.type === 'k') {
                   defenseWeights[rank][file] += 1; // Kings always count as 1
                 } else {
@@ -269,4 +291,3 @@ export function addDefendingControlColours(currentColors: BoardWeights, game: Ch
 
   return newColors;
 }
-
