@@ -68,6 +68,7 @@ export default function Home() {
       }
       return false;
     } catch (error) {
+      console.log("Error on dropping a piece:", error);
       return false;
     }
   }
