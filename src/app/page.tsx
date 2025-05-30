@@ -2,15 +2,15 @@
 import { useState, useRef, useLayoutEffect } from "react";
 import { Chess, Square } from "chess.js";
 import { Chessboard } from "react-chessboard";
-import { BoardWeights, addAttackingControlColours, addCentralControlColours, addDefendingControlColours } from "@/utils/controlAnalysis";
+import { BoardWeights, addCurrentPlayerControlColours, addCentralControlColours, addWaitingPlayerControlColours } from "@/utils/controlAnalysis";
 import Movesheet from "@/app/components/Movesheet";
 import ToggleSwitch from "@/app/components/ToggleSwitch";
 
 export default function Home() {
   const gameRef = useRef<Chess>(new Chess());
   const [centralImportanceIsOn, setCentralImportanceIsOn] = useState(false);
-  const [attackingControlIsOn, setAttackingControlIsOn] = useState(false);
-  const [defendingControlIsOn, setDefendingControlIsOn] = useState(false);
+  const [currentPlayerControlIsOn, setCurrentPlayerControlIsOn] = useState(false);
+  const [waitingPlayerControlIsOn, setWaitingPlayerControlIsOn] = useState(false);
   const [reverseWeightsIsOn, setReverseWeightsIsOn] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
   const [removeShading, setRemoveShading] = useState(false);
@@ -20,7 +20,7 @@ export default function Home() {
   useLayoutEffect(() => {
     let currentColors = new BoardWeights();
 
-    if (attackingControlIsOn || defendingControlIsOn || centralImportanceIsOn) {
+    if (currentPlayerControlIsOn || waitingPlayerControlIsOn || centralImportanceIsOn) {
 
       for (let rank = 0; rank < 8; rank++) {
         for (let file = 0; file < 8; file++) {
@@ -33,12 +33,12 @@ export default function Home() {
         currentColors = addCentralControlColours(currentColors);
       }
 
-      if (attackingControlIsOn) {
-        currentColors = addAttackingControlColours(currentColors, gameRef.current, reverseWeightsIsOn);
+      if (currentPlayerControlIsOn) {
+        currentColors = addCurrentPlayerControlColours(currentColors, gameRef.current, reverseWeightsIsOn);
       }
 
-      if (defendingControlIsOn) {
-        currentColors = addDefendingControlColours(currentColors, gameRef.current, reverseWeightsIsOn);
+      if (waitingPlayerControlIsOn) {
+        currentColors = addWaitingPlayerControlColours(currentColors, gameRef.current, reverseWeightsIsOn);
       }
 
       const newSquareStyles: { [key: string]: { backgroundColor: string } } = {};
@@ -52,7 +52,7 @@ export default function Home() {
     } else {
       setCustomSquareStyles({});
     }
-  }, [attackingControlIsOn, centralImportanceIsOn, defendingControlIsOn, reverseWeightsIsOn, removeShading]);
+  }, [currentPlayerControlIsOn, centralImportanceIsOn, waitingPlayerControlIsOn, reverseWeightsIsOn, removeShading]);
 
   function onDrop(sourceSquare: string, targetSquare: string) {
     try {
@@ -99,15 +99,15 @@ export default function Home() {
           />
           <ToggleSwitch
             color="green"
-            label="Show Attacking Control"
-            checked={attackingControlIsOn}
-            onChange={() => setAttackingControlIsOn(!attackingControlIsOn)}
+            label="Show Current Player Control"
+            checked={currentPlayerControlIsOn}
+            onChange={() => setCurrentPlayerControlIsOn(!currentPlayerControlIsOn)}
           />
           <ToggleSwitch
             color="red"
-            label="Show Defending Control"
-            checked={defendingControlIsOn}
-            onChange={() => setDefendingControlIsOn(!defendingControlIsOn)}
+            label="Show Waiting Player Control"
+            checked={waitingPlayerControlIsOn}
+            onChange={() => setWaitingPlayerControlIsOn(!waitingPlayerControlIsOn)}
           />
           <ToggleSwitch
             color="purple"

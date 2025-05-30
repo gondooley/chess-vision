@@ -88,12 +88,12 @@ export function addCentralControlColours(currentColors: BoardWeights): BoardWeig
   return newColors;
 }
 
-export function addAttackingControlColours(currentColors: BoardWeights, game: Chess, reverseWeightsIsOn: boolean = false): BoardWeights {
+export function addCurrentPlayerControlColours(currentColors: BoardWeights, game: Chess, reverseWeightsIsOn: boolean = false): BoardWeights {
   // Create new object to maintain immutability
   const newColors = new BoardWeights();
   
-  // Initialize attack weights array
-  const attackWeights = new Array(8).fill(null).map(() => Array(8).fill(0));
+  // Initialize current player weights array
+  const currentPlayerWeights = new Array(8).fill(null).map(() => Array(8).fill(0));
   
   // For each square, count how many pieces can attack it
   for (let rank = 0; rank < 8; rank++) {
@@ -107,7 +107,7 @@ export function addAttackingControlColours(currentColors: BoardWeights, game: Ch
           const piece = game.get(fromSquare);
           if (piece && fromSquare !== targetSquare && piece.color === game.turn()) {
             if (piece.type === 'p') {
-              // For pawns, check attacking squares
+              // For pawns, check squares they control
               const direction = piece.color === 'w' ? -1 : 1; // White moves up (decreasing rank), black moves down (increasing rank)
               const [fromFile, fromRank] = [fromSquare.charCodeAt(0) - 97, 8 - parseInt(fromSquare[1])];
               const [targetFile, targetRank] = [targetSquare.charCodeAt(0) - 97, 8 - parseInt(targetSquare[1])];
@@ -115,7 +115,7 @@ export function addAttackingControlColours(currentColors: BoardWeights, game: Ch
               // Check if target square is diagonally forward
               if (targetRank === fromRank + direction && 
                   (targetFile === fromFile - 1 || targetFile === fromFile + 1)) {
-                attackWeights[rank][file] += reverseWeightsIsOn ? reverseWeights.p : 1;
+                currentPlayerWeights[rank][file] += reverseWeightsIsOn ? reverseWeights.p : 1;
               }
 
               // Check for en passant
@@ -126,7 +126,7 @@ export function addAttackingControlColours(currentColors: BoardWeights, game: Ch
                 if (epRank === fromRank && 
                     (epFile === fromFile - 1 || epFile === fromFile + 1) &&
                     targetSquare === epSquare) {
-                  attackWeights[rank][file] += reverseWeightsIsOn ? reverseWeights.p : 1;
+                  currentPlayerWeights[rank][file] += reverseWeightsIsOn ? reverseWeights.p : 1;
                 }
               }
             } else {
@@ -145,9 +145,9 @@ export function addAttackingControlColours(currentColors: BoardWeights, game: Ch
               }
               if (canAttack) {
                 if (piece.type === 'k') {
-                  attackWeights[rank][file] += 1; // Kings always count as 1
+                  currentPlayerWeights[rank][file] += 1; // Kings always count as 1
                 } else {
-                  attackWeights[rank][file] += reverseWeightsIsOn ? reverseWeights[piece.type] : 1;
+                  currentPlayerWeights[rank][file] += reverseWeightsIsOn ? reverseWeights[piece.type] : 1;
                 }
               }
             }
@@ -157,16 +157,16 @@ export function addAttackingControlColours(currentColors: BoardWeights, game: Ch
     }
   }
   
-  // Find max value in attackWeights
-  let maxAttacks = 0;
+  // Find max value in currentPlayerWeights
+  let maxCurrent = 0;
   for (let rank = 0; rank < 8; rank++) {
     for (let file = 0; file < 8; file++) {
-      maxAttacks = Math.max(maxAttacks, attackWeights[rank][file]);
+      maxCurrent = Math.max(maxCurrent, currentPlayerWeights[rank][file]);
     }
   }
 
   // If max is 0, return original colors
-  if (maxAttacks === 0) {
+  if (maxCurrent === 0) {
     return currentColors;
   }
 
@@ -178,8 +178,8 @@ export function addAttackingControlColours(currentColors: BoardWeights, game: Ch
       const [r, g, b] = rgbValues;
       
       const potentialGreen = 255 - g;
-      const attacks = attackWeights[rank][file];
-      const newGreen = Math.min(255, g + Math.round(potentialGreen * attacks / maxAttacks));
+      const current = currentPlayerWeights[rank][file];
+      const newGreen = Math.min(255, g + Math.round(potentialGreen * current / maxCurrent));
       
       newColors.weights[rank][file] = `rgb(${r}, ${newGreen}, ${b})`;
     }
@@ -188,12 +188,12 @@ export function addAttackingControlColours(currentColors: BoardWeights, game: Ch
   return newColors;
 }
 
-export function addDefendingControlColours(currentColors: BoardWeights, game: Chess, reverseWeightsIsOn: boolean = false): BoardWeights {
+export function addWaitingPlayerControlColours(currentColors: BoardWeights, game: Chess, reverseWeightsIsOn: boolean = false): BoardWeights {
   // Create new object to maintain immutability
   const newColors = new BoardWeights();
   
-  // Initialize defense weights array
-  const defenseWeights = new Array(8).fill(null).map(() => Array(8).fill(0));
+  // Initialize waiting player weights array
+  const waitingPlayerWeights = new Array(8).fill(null).map(() => Array(8).fill(0));
   
   // For each square, count how many pieces can defend it
   for (let rank = 0; rank < 8; rank++) {
@@ -208,7 +208,7 @@ export function addDefendingControlColours(currentColors: BoardWeights, game: Ch
           const opponentColor = game.turn() === 'w' ? 'b' : 'w';
           if (piece && fromSquare !== targetSquare && piece.color === opponentColor) {
             if (piece.type === 'p') {
-              // For pawns, check defending squares
+              // For pawns, check squares they control
               const direction = piece.color === 'w' ? -1 : 1; // White moves up (decreasing rank), black moves down (increasing rank)
               const [fromFile, fromRank] = [fromSquare.charCodeAt(0) - 97, 8 - parseInt(fromSquare[1])];
               const [targetFile, targetRank] = [targetSquare.charCodeAt(0) - 97, 8 - parseInt(targetSquare[1])];
@@ -216,7 +216,7 @@ export function addDefendingControlColours(currentColors: BoardWeights, game: Ch
               // Check if target square is diagonally forward
               if (targetRank === fromRank + direction && 
                   (targetFile === fromFile - 1 || targetFile === fromFile + 1)) {
-                defenseWeights[rank][file] += reverseWeightsIsOn ? reverseWeights.p : 1;
+                waitingPlayerWeights[rank][file] += reverseWeightsIsOn ? reverseWeights.p : 1;
               }
 
               // Check for en passant
@@ -227,7 +227,7 @@ export function addDefendingControlColours(currentColors: BoardWeights, game: Ch
                 if (epRank === fromRank && 
                     (epFile === fromFile - 1 || epFile === fromFile + 1) &&
                     targetSquare === epSquare) {
-                  defenseWeights[rank][file] += reverseWeightsIsOn ? reverseWeights.p : 1;
+                  waitingPlayerWeights[rank][file] += reverseWeightsIsOn ? reverseWeights.p : 1;
                 }
               }
             } else {
@@ -249,9 +249,9 @@ export function addDefendingControlColours(currentColors: BoardWeights, game: Ch
               }
               if (canAttack) {
                 if (piece.type === 'k') {
-                  defenseWeights[rank][file] += 1; // Kings always count as 1
+                  waitingPlayerWeights[rank][file] += 1; // Kings always count as 1
                 } else {
-                  defenseWeights[rank][file] += reverseWeightsIsOn ? reverseWeights[piece.type] : 1;
+                  waitingPlayerWeights[rank][file] += reverseWeightsIsOn ? reverseWeights[piece.type] : 1;
                 }
               }
             }
@@ -261,16 +261,16 @@ export function addDefendingControlColours(currentColors: BoardWeights, game: Ch
     }
   }
   
-  // Find max value in defenseWeights
-  let maxDefenses = 0;
+  // Find max value in waitingPlayerWeights
+  let maxWaiting = 0;
   for (let rank = 0; rank < 8; rank++) {
     for (let file = 0; file < 8; file++) {
-      maxDefenses = Math.max(maxDefenses, defenseWeights[rank][file]);
+      maxWaiting = Math.max(maxWaiting, waitingPlayerWeights[rank][file]);
     }
   }
 
   // If max is 0, return original colors
-  if (maxDefenses === 0) {
+  if (maxWaiting === 0) {
     return currentColors;
   }
 
@@ -282,8 +282,8 @@ export function addDefendingControlColours(currentColors: BoardWeights, game: Ch
       const [r, g, b] = rgbValues;
       
       const potentialRed = 255 - r;
-      const defenses = defenseWeights[rank][file];
-      const newRed = Math.min(255, r + Math.round(potentialRed * defenses / maxDefenses));
+      const waiting = waitingPlayerWeights[rank][file];
+      const newRed = Math.min(255, r + Math.round(potentialRed * waiting / maxWaiting));
       
       newColors.weights[rank][file] = `rgb(${newRed}, ${g}, ${b})`;
     }
