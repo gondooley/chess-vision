@@ -1,133 +1,125 @@
 'use client';
-import { useState, useRef, useLayoutEffect } from "react";
-import { Chess, Square } from "chess.js";
-import { Chessboard } from "react-chessboard";
-import { BoardWeights, addCurrentPlayerControlColours, addCentralControlColours, addWaitingPlayerControlColours } from "@/utils/controlAnalysis";
+import { useState, useEffect } from "react";
+import MyChessboard from "@/app/components/Chessboard";
 import Movesheet from "@/app/components/Movesheet";
-import ToggleSwitch from "@/app/components/ToggleSwitch";
+import BoardAnalysisOptionsPanel from "./components/BoardAnalysisOptionsPanel";
+import GameTree from '@/utils/GameTree';
 
-export default function Home() {
-  const gameRef = useRef<Chess>(new Chess());
+export default function Home({ initialGameTree }: { initialGameTree?: GameTree }) {
   const [centralImportanceIsOn, setCentralImportanceIsOn] = useState(false);
   const [currentPlayerControlIsOn, setCurrentPlayerControlIsOn] = useState(false);
   const [waitingPlayerControlIsOn, setWaitingPlayerControlIsOn] = useState(false);
   const [reverseWeightsIsOn, setReverseWeightsIsOn] = useState(false);
   const [isFlipped, setIsFlipped] = useState(false);
   const [removeShading, setRemoveShading] = useState(false);
-  const [customSquareStyles, setCustomSquareStyles] = useState<{ [key: string]: { backgroundColor: string } }>({});
-  const [gameState, setGameState] = useState(gameRef.current.fen());
+  const [gameTree, setGameTree] = useState<GameTree>(initialGameTree || new GameTree());
+  const [position, setPosition] = useState<string>(gameTree.chessInstance.fen());
+  const [moveTextInput, setMoveTextInput] = useState('');
 
-  useLayoutEffect(() => {
-    let currentColors = new BoardWeights();
-
-    if (currentPlayerControlIsOn || waitingPlayerControlIsOn || centralImportanceIsOn) {
-
-      for (let rank = 0; rank < 8; rank++) {
-        for (let file = 0; file < 8; file++) {
-          const isDark = (rank + file) % 2 === 1;
-          currentColors.weights[rank][file] = (removeShading || isDark) ? "rgb(21, 21, 21)" : "rgb(31, 31, 31)";
-        }
-      }
-
-      if (centralImportanceIsOn) {
-        currentColors = addCentralControlColours(currentColors);
-      }
-
-      if (currentPlayerControlIsOn) {
-        currentColors = addCurrentPlayerControlColours(currentColors, gameRef.current, reverseWeightsIsOn);
-      }
-
-      if (waitingPlayerControlIsOn) {
-        currentColors = addWaitingPlayerControlColours(currentColors, gameRef.current, reverseWeightsIsOn);
-      }
-
-      const newSquareStyles: { [key: string]: { backgroundColor: string } } = {};
-      for (let rank = 0; rank < 8; rank++) {
-        for (let file = 0; file < 8; file++) {
-          const square = String.fromCharCode(97 + file) + (8 - rank);
-          newSquareStyles[square] = { backgroundColor: currentColors.weights[rank][file] };
-        }
-      }
-      setCustomSquareStyles(newSquareStyles);
-    } else {
-      setCustomSquareStyles({});
-    }
-  }, [currentPlayerControlIsOn, centralImportanceIsOn, waitingPlayerControlIsOn, reverseWeightsIsOn, removeShading]);
-
-  function onDrop(sourceSquare: string, targetSquare: string) {
+  const handleAddMove = (move: string) => {
     try {
-      const move = gameRef.current.move({
-        from: sourceSquare as Square,
-        to: targetSquare as Square,
-        promotion: 'q'
-      });
-      if (move) {
-        setGameState(gameRef.current.fen());
-        return true;
-      }
-      return false;
+      const gameTreeCopy = gameTree.makeDuplicateTree();
+      gameTreeCopy.addMove(move);
+      setPosition(gameTreeCopy.chessInstance.fen());
+      setGameTree(gameTreeCopy);
     } catch (error) {
-      console.log("Error on dropping a piece:", error);
-      return false;
+      //bad moves fail silently for now so that the console is not cluttered in tests
+      //TODO: add a proper error handling system
     }
   }
+
+  const handleKeyDown = (event: KeyboardEvent) => {
+    const gameTreeCopy = gameTree.makeDuplicateTree();
+    switch (event.key) {
+      case 'ArrowLeft':
+        if (gameTreeCopy.goToPrevious()) {
+          setPosition(gameTreeCopy.chessInstance.fen());
+        }
+        break;
+      case 'ArrowRight':
+        // Navigate to next move in main line
+        if (gameTreeCopy.goToNext()) {
+          setPosition(gameTreeCopy.chessInstance.fen());
+        }
+        break;
+      case 'ArrowUp':
+        // Navigate to previous alternative
+        if (gameTreeCopy.goToPreviousAlternative()) {
+          setPosition(gameTreeCopy.chessInstance.fen());
+        }
+        break;
+      case 'ArrowDown':
+        // Navigate to next alternative
+        if (gameTreeCopy.goToNextAlternative()) {
+          setPosition(gameTreeCopy.chessInstance.fen());
+        }
+        break;
+    }
+    setGameTree(gameTreeCopy);
+  }
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    }
+  }, [gameTree]);
 
   return (
     <div className="p-4">
       <div className="inline-block">
-        <Chessboard
-          position={gameState}
-          onPieceDrop={onDrop}
+        <MyChessboard
           autoPromoteToQueen={true}
           boardWidth={500}
           boardOrientation={isFlipped ? "black" : "white"}
-          customBoardStyle={{
-            borderRadius: "4px",
-            boxShadow: "0 2px 10px rgba(0, 0, 0, 0.5)"
-          }}
-          customSquareStyles={customSquareStyles}
+          centralImportanceIsOn={centralImportanceIsOn}
+          currentPlayerControlIsOn={currentPlayerControlIsOn}
+          waitingPlayerControlIsOn={waitingPlayerControlIsOn}
+          reverseWeightsIsOn={reverseWeightsIsOn}
+          removeShading={removeShading}
+          chessInstance={gameTree.chessInstance}
+          position={position}
+          addMove={handleAddMove}
         />
       </div>
-      <Movesheet game={gameRef.current} />
-      <div className="inline-block ml-4 align-top pt-4">
-        <div className="flex flex-col gap-2">
-          <ToggleSwitch
-            color="blue"
-            label="Show Central Importance"
-            checked={centralImportanceIsOn}
-            onChange={() => setCentralImportanceIsOn(!centralImportanceIsOn)}
-          />
-          <ToggleSwitch
-            color="green"
-            label="Show Current Player Control"
-            checked={currentPlayerControlIsOn}
-            onChange={() => setCurrentPlayerControlIsOn(!currentPlayerControlIsOn)}
-          />
-          <ToggleSwitch
-            color="red"
-            label="Show Waiting Player Control"
-            checked={waitingPlayerControlIsOn}
-            onChange={() => setWaitingPlayerControlIsOn(!waitingPlayerControlIsOn)}
-          />
-          <ToggleSwitch
-            color="purple"
-            label="Calculate by Reverse-Weights"
-            checked={reverseWeightsIsOn}
-            onChange={() => setReverseWeightsIsOn(!reverseWeightsIsOn)}
-          />
-          <ToggleSwitch
-            color="yellow"
-            label="Flip Board"
-            checked={isFlipped}
-            onChange={() => setIsFlipped(!isFlipped)}
-          />
-          <ToggleSwitch
-            color="gray"
-            label="Remove Square Shading"
-            checked={removeShading}
-            onChange={() => setRemoveShading(!removeShading)}
-          />
-        </div>
+      <div className="inline-block">
+      <Movesheet gameTree={gameTree} currentMove={gameTree.current} />
+      </div>
+      <div className="inline-block">
+      <BoardAnalysisOptionsPanel 
+        centralImportanceIsOn={centralImportanceIsOn}
+        setCentralImportanceIsOn={setCentralImportanceIsOn}
+        currentPlayerControlIsOn={currentPlayerControlIsOn}
+        setCurrentPlayerControlIsOn={setCurrentPlayerControlIsOn}
+        waitingPlayerControlIsOn={waitingPlayerControlIsOn}
+        setWaitingPlayerControlIsOn={setWaitingPlayerControlIsOn}
+        reverseWeightsIsOn={reverseWeightsIsOn}
+        setReverseWeightsIsOn={setReverseWeightsIsOn}
+        isFlipped={isFlipped}
+        setIsFlipped={setIsFlipped}
+        removeShading={removeShading}
+        setRemoveShading={setRemoveShading}
+      />
+      </div>
+      <div className="inline-block">
+        <input 
+          type="text" 
+          value={moveTextInput}
+          onChange={(e) => setMoveTextInput(e.target.value)}
+          placeholder="Enter move (e.g. Nf3, e4, O-O)"
+          className="border p-2 mr-2"
+          data-testid="move-text-input"
+        />
+        <button 
+          onClick={() => {
+            handleAddMove(moveTextInput);
+            setMoveTextInput('');
+          }}
+          className="bg-blue-500 text-white px-4 py-2 rounded"
+          data-testid="move-text-submit-button"
+        >
+          Submit Move
+        </button>
       </div>
     </div>
   );

@@ -1,0 +1,14 @@
+*
+!public
+!src
+!test
+!eslint.config.mjs
+!jest.config.js
+!jest.setup.js
+!next-env.d.ts
+!next.config.ts
+!package-lock.json
+!package.json
+!postcss.config.mjs
+!run_tests.sh
+!tsconfig.json
